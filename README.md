@@ -6,8 +6,30 @@ MySQL, Redis, Inertia, Vue, Wayfinder, Traefik, and GitHub Actions deployment.
 ## Requirements
 
 - Docker with Docker Compose
-- A Laravel application in `src/`
+- Composer or the Laravel installer
 - Bash
+
+## Create the Laravel Application
+
+The `src/` directory is the Laravel application directory. Create the
+application there before starting Docker, using either Composer:
+
+```bash
+cd src
+composer create-project laravel/laravel .
+cd ..
+```
+
+Or the Laravel installer:
+
+```bash
+cd src
+laravel new .
+cd ..
+```
+
+Then configure `src/.env` for the Docker services, including `DB_HOST=mysql`
+and `REDIS_HOST=redis`.
 
 ## Development
 

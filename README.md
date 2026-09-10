@@ -3,6 +3,42 @@
 Production-ready Docker configuration for Laravel 13 with PHP-FPM, Nginx,
 MySQL, Redis, Inertia, Vue, Wayfinder, Traefik, and GitHub Actions deployment.
 
+## Project Structure
+
+```text
+.
+├── .github/workflows/
+│   ├── ci.yml
+│   └── deploy.yml
+├── backups/
+├── docker/
+│   ├── mysql/my.cnf
+│   ├── nginx/
+│   │   ├── default.conf
+│   │   └── Dockerfile.prod
+│   ├── octane/
+│   │   ├── Dockerfile.fpm
+│   │   ├── Dockerfile.octane
+│   │   ├── Dockerfile.prod
+│   │   ├── Dockerfile.prod.octane
+│   │   ├── opcache.ini
+│   │   └── php.ini
+│   └── traefik/
+│       ├── dynamic.yml
+│       └── traefik.yml
+├── src/                         # Laravel application
+├── .dockerignore
+├── .env.example                 # Docker Compose development defaults
+├── .gitignore
+├── app -> app.sh                 # Convenience symlink
+├── app.sh                        # Docker management CLI
+├── docker-compose.yml            # PHP-FPM + Nginx development stack
+├── docker-compose.octane.yml     # Optional Octane development override
+├── docker-compose.prod.yml       # PHP-FPM + Nginx production stack
+├── docker-compose.prod.octane.yml
+└── README.md
+```
+
 ## Requirements
 
 - Docker with Docker Compose
@@ -28,21 +64,37 @@ laravel new .
 cd ..
 ```
 
-Then configure the environment files. This template uses two separate files:
+Laravel creates `src/.env` automatically. Configure the environment files:
 
 - Root `.env`: Docker Compose variables such as database credentials and
   `APP_SERVER`. Create it from `.env.example` if it does not exist.
-- `src/.env`: Laravel runtime variables. Create it from `src/.env.example` and
-  keep `DB_HOST=mysql` and `REDIS_HOST=redis` for Docker networking.
+- `src/.env`: Laravel runtime variables. Keep `DB_HOST=mysql` and
+  `REDIS_HOST=redis` for Docker networking.
 
 ```bash
 cp -n .env.example .env
-cp -n src/.env.example src/.env
+```
+
+Update `src/.env` with these Docker service settings:
+
+```env
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=laravel
+DB_PASSWORD=secret
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=null
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
 ```
 
 The root `.env.production` file is used only for production Compose variables.
 Create it from `.env.example`, then set strong passwords, `APP_DOMAIN`, and
-`GITHUB_REPOSITORY`. It is gitignored.
+`GITHUB_REPOSITORY`. Update the production Laravel values in `src/.env`.
 
 ## Development
 

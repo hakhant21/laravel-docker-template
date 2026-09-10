@@ -1,4 +1,3 @@
-.env
 .env.production
 backups/
 src/resources/js/actions/

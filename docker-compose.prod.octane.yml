@@ -1,0 +1,7 @@
+services:
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
+    build: { context: ., dockerfile: docker/octane/Dockerfile.prod.octane }
+    ports: ["8000:8000"]
+  nginx:
+    profiles: [fpm]

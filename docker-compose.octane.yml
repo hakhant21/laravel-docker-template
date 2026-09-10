@@ -1,0 +1,9 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/octane/Dockerfile.octane
+      args: { UID: "${UID:-1000}", GID: "${GID:-1000}" }
+    ports: ["8000:8000"]
+  nginx:
+    profiles: [fpm]

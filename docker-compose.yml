@@ -2,17 +2,25 @@ services:
   app:
     build:
       context: .
-      dockerfile: docker/octane/Dockerfile
+      dockerfile: docker/octane/Dockerfile.fpm
       args: { UID: "${UID:-1000}", GID: "${GID:-1000}" }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_app
     restart: unless-stopped
     working_dir: /app
     volumes: ["./src:/app"]
-    ports: ["8000:8000"]
     networks: [laravel]
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
+  nginx:
+    profiles: [fpm]
+    image: nginx:1.27-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_nginx
+    restart: unless-stopped
+    volumes: ["./src:/app:ro", ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro]
+    ports: ["8000:80"]
+    networks: [laravel]
+    depends_on: [app]
   mysql:
     image: mysql:8.0
     container_name: ${COMPOSE_PROJECT_NAME:-app}_mysql
@@ -44,7 +52,7 @@ services:
       timeout: 5s
       retries: 5
   queue:
-    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    build: { context: ., dockerfile: docker/octane/Dockerfile.fpm, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_queue
     restart: unless-stopped
     working_dir: /app
@@ -53,7 +61,7 @@ services:
     networks: [laravel]
     depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
   horizon:
-    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    build: { context: ., dockerfile: docker/octane/Dockerfile.fpm, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_horizon
     restart: unless-stopped
     working_dir: /app
@@ -62,7 +70,7 @@ services:
     networks: [laravel]
     depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
   scheduler:
-    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    build: { context: ., dockerfile: docker/octane/Dockerfile.fpm, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_scheduler
     restart: unless-stopped
     working_dir: /app

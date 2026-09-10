@@ -1,6 +1,6 @@
 # Laravel Docker Template
 
-Production-ready Docker configuration for Laravel 13 with FrankenPHP, Octane,
+Production-ready Docker configuration for Laravel 13 with PHP-FPM, Nginx,
 MySQL, Redis, Inertia, Vue, Wayfinder, Traefik, and GitHub Actions deployment.
 
 ## Requirements
@@ -17,6 +17,15 @@ Start the development services:
 ./app.sh up dev
 ```
 
+On the first run, `app.sh` asks which application server to use:
+
+1. PHP-FPM + Nginx (default)
+2. Laravel Octane
+
+Your choice is saved as `APP_SERVER` in `.env`, so later commands reuse it.
+To choose again, remove the `APP_SERVER` line from `.env` and run an `app.sh`
+command.
+
 Bootstrap a new Laravel installation:
 
 ```bash
@@ -30,6 +39,7 @@ Services are available at:
 
 - Application: <http://localhost:8000>
 - Vite: <http://localhost:5173>
+- Nginx is exposed on port `8000` and forwards PHP requests to PHP-FPM.
 - Mailpit: <http://localhost:8025>
 - MySQL: `localhost:3306`
 - Redis: `localhost:6379`

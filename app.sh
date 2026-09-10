@@ -27,9 +27,13 @@ compose() {
   shift
   local compose_file="$DEV_FILE"
   local env_file=".env"
+  local server="${APP_SERVER:-fpm}"
+  local -a compose_args=(--env-file "$env_file" -f "$compose_file")
   [[ "$env" == "prod" ]] && compose_file="$PROD_FILE"
   [[ "$env" == "prod" ]] && env_file=".env.production"
-  docker compose --env-file "$env_file" -f "$compose_file" -p "${PROJECT_NAME}_${env}" "$@"
+  compose_args=(--env-file "$env_file" -f "$compose_file")
+  [[ "$server" == "octane" ]] && compose_args+=( -f "${compose_file%.yml}.octane.yml" )
+  docker compose "${compose_args[@]}" --profile "$server" -p "${PROJECT_NAME}_${env}" "$@"
 }
 
 require_docker() {
@@ -50,6 +54,25 @@ ensure_env() {
       printf '\nACME_EMAIL=%s\n' "$email" >> .env.production
     fi
   fi
+}
+
+choose_server() {
+  local env="$1"
+  local env_file=".env"
+  [[ "$env" == "prod" ]] && env_file=".env.production"
+  APP_SERVER="$(grep '^APP_SERVER=' "$env_file" | cut -d= -f2- || true)"
+  if [[ "$APP_SERVER" != "fpm" && "$APP_SERVER" != "octane" ]]; then
+    printf '%s\n' 'Choose application server:' '1) PHP-FPM + Nginx (default)' '2) Laravel Octane'
+    local choice
+    read -rp 'Selection [1]: ' choice
+    case "${choice:-1}" in
+      1) APP_SERVER="fpm" ;;
+      2) APP_SERVER="octane" ;;
+      *) die 'Invalid server selection' ;;
+    esac
+    printf '\nAPP_SERVER=%s\n' "$APP_SERVER" >> "$env_file"
+  fi
+  export APP_SERVER
 }
 
 help() {
@@ -73,6 +96,7 @@ main() {
   if [[ "$cmd" == "deploy" ]]; then
     require_docker
     ensure_env "prod"
+    choose_server "prod"
     compose prod pull
     compose prod up -d --remove-orphans
     compose prod exec -T app php artisan migrate --force
@@ -80,7 +104,6 @@ main() {
     compose prod exec -T app php artisan route:cache
     compose prod exec -T app php artisan view:cache
     compose prod exec -T app php artisan event:cache
-    compose prod exec -T app php artisan octane:reload || true
     compose prod exec -T horizon php artisan horizon:terminate || true
     docker image prune -f >/dev/null
     ok 'Deployed successfully'
@@ -91,6 +114,7 @@ main() {
   env="$(resolve_env "${1:-dev}")"
   [[ $# -gt 0 ]] && shift
   ensure_env "$env"
+  choose_server "$env"
   require_docker
 
   case $cmd in

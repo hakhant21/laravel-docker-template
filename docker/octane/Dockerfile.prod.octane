@@ -13,8 +13,8 @@ COPY src/ .
 COPY --from=vendor /app/vendor ./vendor
 RUN npm run build
 
-FROM php:8.4-fpm-alpine AS runtime
-RUN apk add --no-cache libpng libzip icu-libs && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpng-dev libzip-dev icu-dev && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip opcache intl && pecl install redis && docker-php-ext-enable redis && apk del .build-deps
+FROM dunglas/frankenphp:1-php8.4-alpine
+RUN install-php-extensions pdo_mysql mbstring exif pcntl bcmath gd zip opcache redis intl
 COPY docker/octane/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/octane/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 RUN addgroup -g 1000 laravel && adduser -u 1000 -G laravel -s /bin/sh -D laravel
@@ -26,5 +26,5 @@ COPY --from=frontend --chown=laravel:laravel /app/resources/js/routes /app/resou
 COPY --from=frontend --chown=laravel:laravel /app/resources/js/wayfinder /app/resources/js/wayfinder
 RUN mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache && chown -R laravel:laravel storage bootstrap/cache && chmod -R 775 storage bootstrap/cache
 USER laravel
-EXPOSE 9000
-CMD ["php-fpm"]
+EXPOSE 8000
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--workers=auto", "--max-requests=500"]

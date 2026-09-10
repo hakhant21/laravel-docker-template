@@ -104,6 +104,23 @@ Start the development services:
 ./app.sh up dev
 ```
 
+To start the development stack, install Composer dependencies, migrate and
+seed the database, and build the frontend automatically:
+
+```bash
+./app.sh dev
+```
+
+To build the frontend manually while the development stack is running:
+
+```bash
+./app.sh npm dev run build
+```
+
+The `up dev` command also installs Composer dependencies automatically. The
+production image installs Composer dependencies with `composer install`, then
+installs frontend dependencies with `npm ci` and runs the frontend build.
+
 On the first run, `app.sh` asks which application server to use:
 
 1. PHP-FPM + Nginx (default)
@@ -183,6 +200,7 @@ Required GitHub secrets:
 
 ```bash
 # Start, stop, rebuild, or restart services
+./app.sh dev
 ./app.sh up dev
 ./app.sh down dev
 ./app.sh restart dev

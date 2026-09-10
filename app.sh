@@ -81,7 +81,7 @@ help() {
     '' \
     "Usage: $SCRIPT_NAME <command> [dev|prod|-d|-p]" \
     '' \
-    'Commands: up down restart build logs ps health shell exec artisan composer npm migrate fresh deploy backup clean help'
+    'Commands: dev up down restart build logs ps health shell exec artisan composer npm vite migrate fresh deploy backup clean help'
 }
 
 main() {
@@ -118,7 +118,17 @@ main() {
   require_docker
 
   case $cmd in
-    up) compose "$env" up -d --build ;;
+    dev)
+      [[ "$env" == "dev" ]] || die 'dev commands are only available in development'
+      compose dev up -d --build
+      compose dev exec -T app composer install --no-interaction
+      compose dev exec -T app php artisan migrate --seed
+      compose dev exec -T vite npm run build
+      ;;
+    up)
+      compose "$env" up -d --build
+      [[ "$env" == "dev" ]] && compose dev exec -T app composer install --no-interaction
+      ;;
     down) compose "$env" down ;;
     restart) compose "$env" restart ;;
     build) compose "$env" build --no-cache ;;
@@ -128,7 +138,11 @@ main() {
     exec) compose "$env" exec "$@" ;;
     artisan) compose "$env" exec app php artisan "$@" ;;
     composer) compose "$env" exec app composer "$@" ;;
-    npm) compose "$env" exec app npm "$@" ;;
+    npm) compose "$env" exec vite npm "$@" ;;
+    vite)
+      [[ "$env" == "dev" ]] || die 'vite commands are only available in development'
+      compose "$env" exec vite npm exec -- vite "$@"
+      ;;
     migrate) compose "$env" exec app php artisan migrate "$@" ;;
     fresh)
       [[ "$env" == "prod" ]] && die 'Refusing to migrate:fresh in production'

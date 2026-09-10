@@ -84,7 +84,10 @@ services:
     ports: ["1025:1025", "8025:8025"]
     networks: [laravel]
   vite:
-    image: node:22-alpine
+    build:
+      context: .
+      dockerfile: docker/octane/Dockerfile.fpm
+      args: { UID: "${UID:-1000}", GID: "${GID:-1000}" }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_vite
     working_dir: /app
     volumes: ["./src:/app"]

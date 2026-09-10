@@ -102,7 +102,7 @@ sudo ln -sf "$PWD/app.sh" /usr/local/bin/app
 Copy and configure the production environment:
 
 ```bash
-cp .env .env.production
+cp .env.example .env.production
 ```
 
 Set `DB_PASSWORD`, `REDIS_PASSWORD`, `GITHUB_REPOSITORY`, and `APP_DOMAIN` in

@@ -1,0 +1,93 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/octane/Dockerfile
+      args: { UID: "${UID:-1000}", GID: "${GID:-1000}" }
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_app
+    restart: unless-stopped
+    working_dir: /app
+    volumes: ["./src:/app"]
+    ports: ["8000:8000"]
+    networks: [laravel]
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_mysql
+    restart: unless-stopped
+    ports: ["3306:3306"]
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes: [mysql_data:/var/lib/mysql, ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf]
+    networks: [laravel]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_redis
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+    networks: [laravel]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  queue:
+    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_queue
+    restart: unless-stopped
+    working_dir: /app
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    volumes: ["./src:/app"]
+    networks: [laravel]
+    depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
+  horizon:
+    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_horizon
+    restart: unless-stopped
+    working_dir: /app
+    command: php artisan horizon
+    volumes: ["./src:/app"]
+    networks: [laravel]
+    depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
+  scheduler:
+    build: { context: ., dockerfile: docker/octane/Dockerfile, args: { UID: "${UID:-1000}", GID: "${GID:-1000}" } }
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_scheduler
+    restart: unless-stopped
+    working_dir: /app
+    command: php artisan schedule:work
+    volumes: ["./src:/app"]
+    networks: [laravel]
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_mailpit
+    restart: unless-stopped
+    ports: ["1025:1025", "8025:8025"]
+    networks: [laravel]
+  vite:
+    image: node:22-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_vite
+    working_dir: /app
+    volumes: ["./src:/app"]
+    ports: ["5173:5173"]
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks: [laravel]
+    depends_on: [app]
+networks:
+  laravel:
+    name: ${COMPOSE_PROJECT_NAME:-app}_net
+    driver: bridge
+volumes:
+  mysql_data:
+  redis_data:

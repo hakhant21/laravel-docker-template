@@ -1,0 +1,22 @@
+name: CI
+on:
+  push: { branches: [main, develop] }
+  pull_request: { branches: [main, develop] }
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env: { MYSQL_ROOT_PASSWORD: secret, MYSQL_DATABASE: testing, MYSQL_USER: laravel, MYSQL_PASSWORD: secret }
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping -h localhost -psecret" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis: { image: redis:7-alpine, ports: ['6379:6379'] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: pdo_mysql,mbstring,exif,pcntl,bcmath,gd,zip,redis,intl }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: src/package-lock.json }
+      - working-directory: src
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader && npm ci && cp .env.example .env && php artisan key:generate && npm run build && vendor/bin/pint --test && php artisan test --parallel

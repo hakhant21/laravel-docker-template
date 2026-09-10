@@ -1,0 +1,5 @@
+.env.production
+backups/
+src/resources/js/actions/
+src/resources/js/routes/
+src/resources/js/wayfinder/

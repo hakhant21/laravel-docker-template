@@ -1,0 +1,50 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_traefik
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro, ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro, ./docker/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro, letsencrypt:/letsencrypt]
+    networks: [laravel]
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
+    build: { context: ., dockerfile: docker/octane/Dockerfile.prod }
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_app
+    restart: unless-stopped
+    env_file: ./src/.env
+    volumes: [app_storage:/app/storage]
+    networks: [laravel]
+    depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`${APP_DOMAIN}`) || Host(`www.${APP_DOMAIN}`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app.loadbalancer.server.port=8000"
+      - "traefik.http.routers.app.middlewares=security-headers@file,compress@file,rate-limit@file"
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_mysql
+    restart: unless-stopped
+    environment: { MYSQL_DATABASE: ${DB_DATABASE}, MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}, MYSQL_USER: ${DB_USERNAME}, MYSQL_PASSWORD: ${DB_PASSWORD} }
+    volumes: [mysql_data:/var/lib/mysql, ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf]
+    networks: [laravel]
+    healthcheck: { test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}"], interval: 10s, retries: 5 }
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes: [redis_data:/data]
+    networks: [laravel]
+    healthcheck: { test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"], interval: 10s, retries: 5 }
+  queue: { image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}, container_name: ${COMPOSE_PROJECT_NAME:-app}_queue, restart: unless-stopped, command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600, env_file: ./src/.env, volumes: [app_storage:/app/storage], networks: [laravel], depends_on: [redis, mysql] }
+  horizon: { image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}, container_name: ${COMPOSE_PROJECT_NAME:-app}_horizon, restart: unless-stopped, command: php artisan horizon, env_file: ./src/.env, volumes: [app_storage:/app/storage], networks: [laravel], depends_on: [redis, mysql] }
+  scheduler: { image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}, container_name: ${COMPOSE_PROJECT_NAME:-app}_scheduler, restart: unless-stopped, command: php artisan schedule:work, env_file: ./src/.env, volumes: [app_storage:/app/storage], networks: [laravel] }
+networks:
+  laravel: { name: ${COMPOSE_PROJECT_NAME:-app}_net, driver: bridge }
+volumes:
+  mysql_data:
+  redis_data:
+  app_storage:
+  letsencrypt:

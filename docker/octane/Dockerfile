@@ -1,0 +1,16 @@
+FROM dunglas/frankenphp:1-php8.4
+
+ARG UID=1000
+ARG GID=1000
+
+RUN apt-get update && apt-get install -y git curl unzip zip libpng-dev libonig-dev libxml2-dev libzip-dev default-mysql-client supervisor && rm -rf /var/lib/apt/lists/*
+RUN install-php-extensions pdo_mysql mbstring exif pcntl bcmath gd zip opcache redis intl
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN groupadd -g ${GID} laravel || true && useradd -u ${UID} -g ${GID} -m -s /bin/bash laravel || true
+COPY docker/octane/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/octane/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+WORKDIR /app
+COPY --chown=laravel:laravel src/ /app
+USER laravel
+EXPOSE 8000
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000"]

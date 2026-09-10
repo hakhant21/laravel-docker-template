@@ -1,0 +1,6 @@
+src/node_modules
+src/vendor
+src/.git
+src/storage/logs/*
+src/storage/framework/cache/*
+backups

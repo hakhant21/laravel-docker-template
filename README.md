@@ -28,8 +28,21 @@ laravel new .
 cd ..
 ```
 
-Then configure `src/.env` for the Docker services, including `DB_HOST=mysql`
-and `REDIS_HOST=redis`.
+Then configure the environment files. This template uses two separate files:
+
+- Root `.env`: Docker Compose variables such as database credentials and
+  `APP_SERVER`. Create it from `.env.example` if it does not exist.
+- `src/.env`: Laravel runtime variables. Create it from `src/.env.example` and
+  keep `DB_HOST=mysql` and `REDIS_HOST=redis` for Docker networking.
+
+```bash
+cp -n .env.example .env
+cp -n src/.env.example src/.env
+```
+
+The root `.env.production` file is used only for production Compose variables.
+Create it from `.env.example`, then set strong passwords, `APP_DOMAIN`, and
+`GITHUB_REPOSITORY`. It is gitignored.
 
 ## Development
 

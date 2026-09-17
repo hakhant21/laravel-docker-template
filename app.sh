@@ -53,17 +53,23 @@ require_docker() {
   if [[ -z "$platform" ]]; then
     platform="$(docker info --format '{{.OSType}}/{{.Architecture}}')"
   fi
+  local machine="$(uname -m)"
+  local arm32=0
   case "$platform" in
-    linux/arm/v8|linux/arm|linux/armv[6-8]*|linux/armhf)
+    linux/arm*|linux/aarch64) arm32=1 ;;
+  esac
+  case "$machine" in
+    arm|armv[5-8]*|armhf|aarch32|aarch64|arm64) arm32=1 ;;
+  esac
+  if [[ "$arm32" == "1" || "${USE_SQLITE:-0}" == "1" ]]; then
       export USE_SQLITE=1
       export DB_CONNECTION=sqlite
       export DB_DATABASE=/app/database/database.sqlite
       unset DOCKER_DEFAULT_PLATFORM
       mkdir -p src/database
       touch src/database/database.sqlite
-      log "linux/arm/v8 detected; using SQLite instead of MySQL"
-      ;;
-  esac
+      log "ARM platform detected; using SQLite instead of MySQL"
+  fi
 }
 
 ensure_env() {

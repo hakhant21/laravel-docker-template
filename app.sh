@@ -58,6 +58,7 @@ require_docker() {
       export USE_SQLITE=1
       export DB_CONNECTION=sqlite
       export DB_DATABASE=/app/database/database.sqlite
+      unset DOCKER_DEFAULT_PLATFORM
       mkdir -p src/database
       touch src/database/database.sqlite
       log "linux/arm/v8 detected; using SQLite instead of MySQL"

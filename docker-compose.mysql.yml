@@ -1,0 +1,20 @@
+services:
+  app:
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  queue:
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  horizon:
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  scheduler:
+    depends_on:
+      mysql:
+        condition: service_healthy

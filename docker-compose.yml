@@ -18,8 +18,6 @@ services:
       - laravel
 
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -45,6 +43,7 @@ services:
       - app
 
   mysql:
+    profiles: [mysql]
     image: mysql:8.0
     container_name: ${COMPOSE_PROJECT_NAME:-minipos}_mysql
     restart: unless-stopped
@@ -127,8 +126,6 @@ services:
       - laravel
 
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -159,8 +156,6 @@ services:
       - laravel
 
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -188,8 +183,6 @@ services:
       - laravel
 
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 

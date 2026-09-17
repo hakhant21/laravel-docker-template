@@ -14,7 +14,7 @@ services:
     env_file: ./src/.env
     volumes: [app_storage:/app/storage]
     networks: [laravel]
-    depends_on: { mysql: { condition: service_healthy }, redis: { condition: service_healthy } }
+    depends_on: { redis: { condition: service_healthy } }
   nginx:
     build: { context: ., dockerfile: docker/nginx/Dockerfile.prod }
     container_name: ${COMPOSE_PROJECT_NAME:-app}_nginx
@@ -30,6 +30,7 @@ services:
       - "traefik.http.services.app.loadbalancer.server.port=80"
       - "traefik.http.routers.app.middlewares=security-headers@file,compress@file,rate-limit@file"
   mysql:
+    profiles: [mysql]
     image: mysql:8.0
     container_name: ${COMPOSE_PROJECT_NAME:-app}_mysql
     restart: unless-stopped
@@ -57,7 +58,7 @@ services:
     env_file: ./src/.env
     volumes: [app_storage:/app/storage]
     networks: [laravel]
-    depends_on: [redis, mysql]
+    depends_on: [redis]
   horizon:
     image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-app}_horizon
@@ -66,7 +67,7 @@ services:
     env_file: ./src/.env
     volumes: [app_storage:/app/storage]
     networks: [laravel]
-    depends_on: [redis, mysql]
+    depends_on: [redis]
   scheduler:
     image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-app}_scheduler

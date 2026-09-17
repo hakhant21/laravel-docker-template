@@ -29,11 +29,19 @@ compose() {
   local env_file=".env"
   local server="${APP_SERVER:-fpm}"
   local -a compose_args=(--env-file "$env_file" -f "$compose_file")
+  local -a profile_args=(--profile "$server")
   [[ "$env" == "prod" ]] && compose_file="$PROD_FILE"
   [[ "$env" == "prod" ]] && env_file=".env.production"
   compose_args=(--env-file "$env_file" -f "$compose_file")
   [[ "$server" == "octane" ]] && compose_args+=( -f "${compose_file%.yml}.octane.yml" )
-  docker compose "${compose_args[@]}" --profile "$server" -p "${PROJECT_NAME}_${env}" "$@"
+  if [[ "${USE_SQLITE:-0}" == "1" ]]; then
+    compose_args+=( -f docker-compose.sqlite.yml )
+    profile_args+=(--profile sqlite)
+  else
+    compose_args+=( -f docker-compose.mysql.yml )
+    profile_args+=(--profile mysql)
+  fi
+  docker compose "${compose_args[@]}" "${profile_args[@]}" -p "${PROJECT_NAME}_${env}" "$@"
 }
 
 require_docker() {
@@ -47,8 +55,12 @@ require_docker() {
   fi
   case "$platform" in
     linux/arm/v8|linux/arm|linux/armv[6-8]*|linux/armhf)
-      export DOCKER_DEFAULT_PLATFORM="linux/amd64"
-      log "linux/arm/v8 is not supported by the required images; using linux/amd64"
+      export USE_SQLITE=1
+      export DB_CONNECTION=sqlite
+      export DB_DATABASE=/app/database/database.sqlite
+      mkdir -p src/database
+      touch src/database/database.sqlite
+      log "linux/arm/v8 detected; using SQLite instead of MySQL"
       ;;
   esac
 }
@@ -161,9 +173,14 @@ main() {
       ;;
     backup)
       mkdir -p backups
-      compose "$env" exec -T mysql sh -c \
-        'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
-        > "backups/db_${env}_$(date +%Y%m%d_%H%M%S).sql"
+      if [[ "${USE_SQLITE:-0}" == "1" ]]; then
+        compose "$env" exec -T app cat /app/database/database.sqlite \
+          > "backups/db_${env}_$(date +%Y%m%d_%H%M%S).sqlite"
+      else
+        compose "$env" exec -T mysql sh -c \
+          'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
+          > "backups/db_${env}_$(date +%Y%m%d_%H%M%S).sql"
+      fi
       ;;
     clean) compose "$env" down -v --remove-orphans ;;
     *) die "Unknown command: $cmd" ;;

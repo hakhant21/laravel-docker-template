@@ -40,6 +40,17 @@ require_docker() {
   command -v docker >/dev/null || die "docker not found"
   docker compose version >/dev/null || die "docker compose not found"
   docker info >/dev/null || die "docker daemon not running"
+
+  local platform="${DOCKER_DEFAULT_PLATFORM:-}"
+  if [[ -z "$platform" ]]; then
+    platform="$(docker info --format '{{.OSType}}/{{.Architecture}}')"
+  fi
+  case "$platform" in
+    linux/arm/v8|linux/arm|linux/armv[6-8]*|linux/armhf)
+      export DOCKER_DEFAULT_PLATFORM="linux/amd64"
+      log "linux/arm/v8 is not supported by the required images; using linux/amd64"
+      ;;
+  esac
 }
 
 ensure_env() {

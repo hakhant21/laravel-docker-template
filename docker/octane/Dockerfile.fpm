@@ -3,13 +3,79 @@ FROM php:8.4-fpm
 ARG UID=1000
 ARG GID=1000
 
-RUN apt-get update && apt-get install -y git curl unzip zip libpng-dev libonig-dev libxml2-dev libzip-dev default-mysql-client supervisor libicu-dev libpq-dev ca-certificates && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip opcache intl && pecl install redis && docker-php-ext-enable redis && rm -rf /var/lib/apt/lists/*
+# Debian repositories in the PHP image currently use HTTP.
+# Some POS/network environments block outbound port 80.
+# Force Debian repositories to HTTPS before apt-get update.
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g' \
+    /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g' \
+    /etc/apt/sources.list; \
+    sed -i 's|http://security.debian.org|https://security.debian.org|g' \
+    /etc/apt/sources.list; \
+    fi; \
+    apt-get -o Acquire::Retries=5 update; \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    unzip \
+    zip \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    supervisor \
+    libicu-dev \
+    libpq-dev \
+    sqlite3 \
+    libsqlite3-dev; \
+    docker-php-ext-install \
+    pdo_mysql \
+    pdo_sqlite \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    opcache \
+    intl; \
+    pecl install redis; \
+    docker-php-ext-enable redis; \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN groupadd -g ${GID} laravel || true && useradd -u ${UID} -g ${GID} -m -s /bin/bash laravel || true
-COPY docker/octane/php.ini /usr/local/etc/php/conf.d/custom.ini
-COPY docker/octane/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+
+RUN set -eux; \
+    groupadd -g "${GID}" laravel 2>/dev/null || true; \
+    useradd \
+    -u "${UID}" \
+    -g "${GID}" \
+    -m \
+    -s /bin/bash \
+    laravel 2>/dev/null || true
+
 WORKDIR /app
-COPY --chown=laravel:laravel src/ /app
+
+COPY --chown=${UID}:${GID} ./src /app
+
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+    database \
+    && touch database/database.sqlite \
+    && chown -R "${UID}:${GID}" \
+    storage \
+    bootstrap/cache \
+    database
+
 USER laravel
-EXPOSE 9000
+
 CMD ["php-fpm"]
